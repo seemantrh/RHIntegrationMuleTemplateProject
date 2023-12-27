@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<flow name="HTTP-muletemplateprojectFlow" doc:id="545eb498-84f8-4e5d-bd73-1ed377db3f6b" >
+		<http:listener doc:name="Listener" doc:id="63bb3d77-b846-49d2-ae73-506d9109bff7" config-ref="RMSInbound_HTTP_Listener_config" path="${uri}"/>
+		<set-variable value='#[uuid() replace "-" with ""]' doc:name="messageID" doc:id="bc06c64e-0d7d-4ce2-94a4-faab03739f7e" variableName="messageID"/>
+		<flow-ref doc:name="SumoLog" doc:id="09e89197-527b-4d74-819a-dafc0819a1f8" name="SumoLog"/>
+		<logger level="INFO" doc:name="Logger" doc:id="41608476-ff45-4d2e-9452-db5cac958c76" message="messageID: #[vars.messageID] Request Received : Value fetched from DevelopmentSettingsJars : ${APLFtpPswd}"/>
+		<logger level="INFO" doc:name="Logger" doc:id="8db715d9-54f5-48d9-a18f-d2cfddd5cf63" message="messageID: #[vars.messageID] Value fetched from AWS Secret Manager :  ${aws-secrets::das.service}"/>
+		<logger level="INFO" doc:name="Logger" doc:id="53a46201-d0cc-457b-89d0-fb4af6b5a5bc" message="messageID: #[vars.messageID] Value fetched from AWS Parameter Store :  ${custom-properties-provider::DASPassword}"/>
+		<logger level="INFO" doc:name="Logger" doc:id="163f5e2a-f102-4c61-9dc0-8915f33901d6" message="messageID: #[vars.messageID] Value fetched from AWS Parameter Store : ${custom-properties-provider::DASUsername}"/>
+	
+	</flow>
+</mule>

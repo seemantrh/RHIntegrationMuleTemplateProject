@@ -1,0 +1,2 @@
+# rhintegrationmuletemplateproject
+ rhintegrationmuletemplateproject

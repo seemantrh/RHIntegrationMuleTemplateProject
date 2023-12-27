@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+	<Properties>
+		<Property name="logDir">${sys:mule.home}/app_logs</Property>
+		<Property name="appName">rhintegratiomuletemplateproject</Property>
+	</Properties>
+	<Appenders>
+		<RollingFile name="diagnostic"
+			fileName="${logDir}/${appName}.log"
+			filePattern="${logDir}/${appName}-%i.log.gz">
+			<PatternLayout
+				pattern="[%d{MM-dd HH:mm:ss,SSS}] %-5p [%t] %c{1}: %m%n" />
+			<Policies>
+				<SizeBasedTriggeringPolicy size="200MB" />
+			</Policies>
+			<DefaultRolloverStrategy max="10" />
+			<ThresholdFilter level="INFO" onMatch="ACCEPT"
+				onMismatch="DENY" />
+		</RollingFile>
+		<RollingFile name="monitoring"
+			fileName="${logDir}/${appName}-monitoring.log" append="true"
+			filePattern="${logDir}/$${date:yyyy-MM}/${appName}-monitoring-%d{MM-dd-yyyy}-%i.log.gz">
+			<PatternLayout
+				pattern="[%d{MM-dd HH:mm:ss,SSS}] %-5p [%t] %c{1}: %m%n" />
+			<Policies>
+				<SizeBasedTriggeringPolicy size="200MB" />
+			</Policies>
+			<DefaultRolloverStrategy max="10" />
+			<TimeBasedTriggeringPolicy />
+			<ThresholdFilter level="WARN" onMatch="ACCEPT"
+				onMismatch="DENY" />
+		</RollingFile>
+		<Console name="CONSOLE" target="SYSTEM_OUT">
+			<PatternLayout pattern="%-5p %d [%t] %c{1}: %m%n" />
+		</Console>
+	</Appenders>
+	<Loggers>
+		<AsyncLogger name="javax.jmdns.impl.DNSIncoming"
+			level="ERROR" />
+		<AsyncLogger
+			name="com.rh.mule.logging.ActiveMQConnectionLogger" level="WARN" />
+		<AsyncLogger name="httpclient.wire" level="INFO" />
+		<AsyncLogger name="org.apache.commons.httpclient"
+			level="INFO" />
+		<AsyncLogger
+			name="org.mule.util.queue.DualRandomAccessFileQueueStoreDelegate"
+			level="INFO" />
+		<AsyncLogger
+			name="com.rh.mule.logging.ApplicationMonitoringAgent" level="INFO" />
+		<AsyncLogger name="org.mule.transformer" level="WARN" />
+		<AsyncLogger name="org.jetel.graph" level="WARN" />
+		<AsyncLogger
+			name="org.mule.transport.service.DefaultTransportServiceDescriptor"
+			level="WARN" />
+		<AsyncLogger name="com.rh.mule" level="INFO" />
+		<AsyncLogger
+			name="org.mule.module.launcher.DeploymentDirectoryWatcher"
+			level="WARN" />
+		<AsyncLogger name="com.mulesoft.module.batch" level="WARN" />
+		<AsyncLogger name="org.mule.transport.jms.JmsMessageUtils"
+			level="ERROR" />
+		<AsyncLogger
+			name="org.mule.lifecycle.AbstractLifecycleManager" level="WARN" />
+		<AsyncLogger name="com.mulesoft.mule.runtime.bti"
+			level="WARN"></AsyncLogger>
+		<AsyncLogger
+			name="org.mule.service.http.impl.service.HttpMessageLogger"
+			level="INFO" />
+		<AsyncRoot level="INFO">
+			<!-- log levels are set as filters on the appenders -->
+			<AppenderRef ref="diagnostic" />
+			<AppenderRef ref="monitoring" />
+		</AsyncRoot>
+	</Loggers>
+</Configuration>

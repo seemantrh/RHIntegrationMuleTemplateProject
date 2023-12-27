@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:custom-properties-provider="http://www.mulesoft.org/schema/mule/custom-properties-provider"
+	xmlns:aws-secrets-manager-properties-override="http://www.mulesoft.org/schema/mule/aws-secrets-manager-properties-override"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/aws-secrets-manager-properties-override http://www.mulesoft.org/schema/mule/aws-secrets-manager-properties-override/current/mule-aws-secrets-manager-properties-override.xsd
+http://www.mulesoft.org/schema/mule/custom-properties-provider http://www.mulesoft.org/schema/mule/custom-properties-provider/current/mule-custom-properties-provider.xsd">
+
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="3354c282-bcd4-47ec-99d9-4eb1a6f71314"
+		file="config-${MULE_ENV}.yaml" />
+	<import doc:name="Import"
+		doc:id="1bff36cd-83dd-4a01-a6c5-f89600f221a9" file="commonlib.xml" />
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="72d4334c-415d-424d-bf0e-7e5c1fe7592f" file="config.yaml" />
+
+	<http:listener-config
+		name="RMSInbound_HTTP_Listener_config"
+		doc:name="RMS Inbound HTTP Listener config"
+		doc:id="66b07bfe-8a8a-4f6b-83b3-9e52e93a0fa7" basePath="${basePath}">
+		<http:listener-connection host="${host}"
+			port="${port}" />
+	</http:listener-config>
+
+	<aws-secrets-manager-properties-override:config
+		name="AWS_Secrets_Manager_Properties_Override_Config"
+		doc:name="AWS Secrets Manager Properties Override Config">
+		<aws-secrets-manager-properties-override:secrets-manager
+			secretName="qa-config" />
+		<aws-secrets-manager-properties-override:basic-connection region="us-east-1" />
+		<aws-secrets-manager-properties-override:advanced-connection useDefaultAWSCredentialsProviderChain="true" />
+	</aws-secrets-manager-properties-override:config>
+
+	<custom-properties-provider:config
+		name="Custom_Properties_Provider_Config"
+		doc:name="Custom Properties Provider Config"
+		doc:id="e7da6bdb-7146-4a21-aefe-774d3b4c938b"
+		customParameter="/MULE/QA/RMSItemInbound" />
+		
+	<error-handler name="globalError_Handler"
+		doc:id="800b18aa-7176-4a73-8b27-03286a0f179e">
+		<on-error-continue enableNotifications="true"
+			logException="true" doc:name="On Error Continue"
+			doc:id="a8ea2920-91b3-4831-b45f-a3c6190a7f1b"
+			type="XML-MODULE:SCHEMA_NOT_HONOURED, XML-MODULE:INVALID_INPUT_XML">
+			<set-variable variableName="errorPayload"
+				value="#[payload]" />
+			<choice doc:name="Choice"
+				doc:id="51049597-9eab-49a4-8b91-0b059581f2a6">
+				<when expression="#[null != error.errorMessage]">
+					<foreach collection="#[error.errorMessage.payload]">
+						<logger level="ERROR"
+							message=" MessageID=#[vars.messageID] -- Error Description: #[payload.description]. Other details  #['At line: $(payload.lineNumber), column: $(payload.columnNumber) -&gt; $(payload.description)']. Payload is  #[vars.errPayload]"
+							category="com.rh.mule.rmsinbound.error" />
+					</foreach>
+				</when>
+				<otherwise>
+					<logger level="ERROR" doc:name="Logger"
+						doc:id="f18d630d-216f-43cb-b924-29d0449d71c7"
+						category="com.rh.mule.rmsinbound.error"
+						message=" MessageID=#[vars.messageID] INVALID_INPUT_XML. Payload is  #[payload] and error is #[error.description]. Other details  #[error.errorType] #[error.exception]" />
+				</otherwise>
+			</choice>
+			<set-payload value="#[vars.errorPayload]"
+				doc:name="Set Payload" doc:id="e4d66aed-f791-4294-b6a4-18c54ac5a333" />
+			<ee:transform doc:name="Transform Message"
+				doc:id="d65232ca-6c78-4a4e-998f-9a5a8b7ec788">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+--- 
+						{
+           messageID : vars.messageID,
+msgType : vars.inboundQueue,
+appName : app.name,
+inboundQueue : vars.inboundQueue,
+error: error.description,
+errorPayload: payload        }
+]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<!-- <ibm-mq:publish doc:name="Publish"
+				doc:id="31f6a8b8-9d25-477d-bf03-732c8a0297ac"
+				config-ref="IBM_MQ_Config" destination="MULE.SCHEMA.ERROR.TO.MULE">
+				<ibm-mq:message>
+					<ibm-mq:properties><![CDATA[#[{
+           messageID : vars.messageID,
+appName : app.name,
+inboundQueue : vars.inboundQueue,
+payload:payload,
+error: error.description        }]]]></ibm-mq:properties>
+				</ibm-mq:message>
+			</ibm-mq:publish> -->
+			<logger level="DEBUG" doc:name="Logger"
+				doc:id="778a9f75-94f8-44bf-ac69-718d09a23ef7"
+				message="MessageID=#[vars.messageID]. Error published to followig queue: #[output application/java --- write(						{
+           messageID : vars.messageID,
+msgType : vars.inboundQueue,
+appName : app.name,
+inboundQueue : vars.inboundQueue,
+error: error.description,
+errorPayload: payload        })]"
+				category="com.rh.mule.rmsinbound.error" />
+		</on-error-continue>
+		<on-error-continue enableNotifications="true"
+			logException="true" doc:name="On Error Continue"
+			doc:id="b66cd55b-2172-4ac1-a996-71a233755e81" type="VALIDATION:INVALID_BOOLEAN">
+		<logger level="ERROR" doc:name="Logger"
+				doc:id="b7b38fb9-d6fa-4232-9ad0-0bd135067d4b"
+				message="MessageID=#[vars.messageID]-INVALID_BOOLEAN-Payload is #[payload] and error is #[error.description]. Other details  #[error.errorType] #[error.exception]"
+				category="com.rh.mule.rmsinbound.error" />		
+        </on-error-continue>
+        <!-- ******** Use this for custom error types **********************
+        <on-error-continue enableNotifications="true"
+			logException="true" doc:name="On Error Continue"
+			doc:id="515e4b5a-4c4a-41c9-adc1-be1cc1d3858e" type="ITEM:SOAP_FAULT_RAISE">
+			<logger level="ERROR" doc:name="Logger"
+				doc:id="e8b5af37-6ace-40e2-af85-0aa87f4d6efe"
+				message="MessageID=#[vars.messageID]-RMS SOAP Fault exception-Payload is #[payload] and error is #[error.description]. Other details  #[error.errorType] #[error.exception]"
+				category="com.rh.mule.rmsinbound.error" />		
+        </on-error-continue>
+        -->
+        <on-error-continue enableNotifications="true"
+			logException="true" doc:name="On Error Continue"
+			doc:id="a13cca0e-ea3a-480a-bd6e-8dfa482ce115" type="MULE:EXPRESSION">
+			<logger level="ERROR" doc:name="Logger"
+				doc:id="42b6bc0d-2605-4fa1-80d5-cc6a88bbc6e4"
+				message="MessageID=#[vars.messageID]-Schema validation exception NEEDED TO REPORT-Payload is #[payload] and error is #[error.description]. Other details  #[error.errorType] #[error.exception]"
+				category="com.rh.mule.rmsinbound.error" />		
+        </on-error-continue>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="35536afb-45d5-463e-9ba5-de549b591a50" type="ANY">
+			<logger level="ERROR" doc:name="Logger" doc:id="acc74e47-79e9-42fd-920d-756a12dc36ce" message="MessageID=#[vars.messageID]-ROLLBACK-Payload is #[payload] and error is #[error.description]. Other details  #[error.errorType] #[error.exception]" category="com.rh.mule.rmsinbound.error"/>
+		</on-error-propagate>
+
+	</error-handler>
+	<sub-flow name="SumoLog"
+		doc:id="06781a41-87cb-46d3-8306-f5063c150af6">
+		<choice doc:name="isRolledback"
+			doc:id="3d10dab2-b17a-4a3f-8d2e-964fa53b3d8f">
+			<when expression="#[attributes.headers.redelivered]">
+				<logger level="INFO" doc:name="rolledback_logger"
+					doc:id="4c7848f4-f648-4995-b9c9-5220f6776350"
+					message="MessageId=#[vars.messageID] is a redelivered- rolled back message."
+					category="com.rh.mule.rmsinbound" />
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="payload_sumo_logger"
+					doc:id="435b7ced-fea4-401f-8102-f5f84e857dad"
+					message="MessageID=#[vars.messageID] Payload is #[payload] and redivered property is  #[attributes.headers.redelivered]"
+					category="com.rh.mule.rmsinbound" />
+			</otherwise>
+		</choice>
+	</sub-flow>	
+	
+</mule>
